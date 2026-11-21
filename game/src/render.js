@@ -275,8 +275,16 @@ export function createRenderer(canvas, hud) {
           : 1;
         const glow = (tod === 'night' || tod === 'sunset') ? 1 : 0.55;
         const size = Math.min(15, b.w / (b.sign.text.length * 0.8));
-        const tw = b.sign.text.length * size * 0.42;
+        const tw = b.sign.text.length * size * 0.68;
         const cy = b.y + b.h + wallH + 13;
+        // v4: a sign cut by the viewport edge reads as a broken word ("AR",
+        // "RF" on the frame edge) — skip it whole when its plate would not
+        // fit on screen, instead of drawing half a word.
+        const plateL = b.x + b.w / 2 - tw / 2 - 7;
+        const plateR = b.x + b.w / 2 + tw / 2 + 7;
+        const offEdge = plateL < cam.x + 2 || plateR > cam.x + VIEW_W - 2
+          || cy - size - 3 < cam.y + 2 || cy + 5 > cam.y + VIEW_H - 2;
+        if (!offEdge) {
         c.save();
         c.globalAlpha = glow * flicker;
         c.fillStyle = 'rgba(6, 10, 18, 0.55)';
@@ -290,6 +298,7 @@ export function createRenderer(canvas, hud) {
         c.textAlign = 'center';
         c.fillText(b.sign.text, b.x + b.w / 2, cy);
         c.restore();
+        }
       }
     }
     // Street lamps: a soft radial halo after dark, brighter at night.
@@ -311,9 +320,33 @@ export function createRenderer(canvas, hud) {
         c.fill();
       }
     }
+    // v4 visual: rain-slick asphalt mirrors the street lamps — each lamp
+    // stretches into a pale smear along its road, so a rainy night reads as
+    // wet instead of just dark. A lamp sits 56 px off its own road, so the
+    // nearer road line decides which way the smear runs.
+    if (night && state.rain > 0.03) {
+      const wet = Math.min(1, state.rain);
+      for (const l of city.lamps) {
+        if (l.x < cam.x - 60 || l.x > cam.x + VIEW_W + 60 || l.y < cam.y - 60 || l.y > cam.y + VIEW_H + 60) continue;
+        let nearX = Infinity;
+        let nearY = Infinity;
+        for (const rx of city.xs) nearX = Math.min(nearX, Math.abs(l.x - rx));
+        for (const ry of city.ys) nearY = Math.min(nearY, Math.abs(l.y - ry));
+        const vertical = nearX <= nearY;
+        const smear = vertical
+          ? c.createLinearGradient(l.x, l.y - 46, l.x, l.y + 46)
+          : c.createLinearGradient(l.x - 46, l.y, l.x + 46, l.y);
+        smear.addColorStop(0, 'rgba(255, 214, 106, 0)');
+        smear.addColorStop(0.5, `rgba(255, 214, 106, ${0.30 * wet})`);
+        smear.addColorStop(1, 'rgba(255, 214, 106, 0)');
+        c.fillStyle = smear;
+        if (vertical) c.fillRect(l.x - 3.5, l.y - 46, 7, 92);
+        else c.fillRect(l.x - 46, l.y - 3.5, 92, 7);
+      }
+    }
   }
 
-  function drawCar(c, car, night, time, tod) {
+  function drawCar(c, car, night, time, tod, rain) {
     // v2 visual: a patrol car's flashing light bar washes the street red/blue.
     if (car.carKind === 'police') {
       const red = Math.floor((time || 0) * 5) % 2 === 0;
@@ -329,6 +362,26 @@ export function createRenderer(canvas, hud) {
     c.translate(car.x, car.y);
     // v2 visual: the body turns on its eased angle, not the physics snap.
     c.rotate(car.visualAngle ?? car.angle);
+    // v4 visual: on a wet night the headlights wash the asphalt ahead — a
+    // pale streak the beam cone alone does not give.
+    if (night && rain > 0.03) {
+      const wet = Math.min(1, rain);
+      const wash = c.createLinearGradient(CAR.length / 2, 0, CAR.length / 2 + 95, 0);
+      wash.addColorStop(0, `rgba(255, 240, 190, ${0.16 * wet})`);
+      wash.addColorStop(1, 'rgba(255, 240, 190, 0)');
+      c.fillStyle = wash;
+      c.beginPath();
+      c.moveTo(CAR.length / 2 - 6, -9);
+      c.lineTo(CAR.length / 2 + 95, -20);
+      c.lineTo(CAR.length / 2 + 95, 20);
+      c.lineTo(CAR.length / 2 - 6, 9);
+      c.closePath();
+      c.fill();
+      c.fillStyle = `rgba(200, 220, 255, ${0.05 * wet})`;
+      c.beginPath();
+      c.ellipse(0, 0, CAR.length / 2 + 14, CAR.width / 2 + 10, 0, 0, Math.PI * 2);
+      c.fill();
+    }
     // v2: nitro flame licking out of the exhaust while boosting.
     if (car.nitroActive) {
       const flick = 18 + Math.sin((time || 0) * 40) * 6;
@@ -352,6 +405,17 @@ export function createRenderer(canvas, hud) {
     c.beginPath();
     c.ellipse(3, 5, CAR.length / 2 + 2, CAR.width / 2 + 3, 0, 0, Math.PI * 2);
     c.fill();
+    // v4 visual: braking spills a red bloom onto the asphalt behind the car,
+    // so a stop reads even before the tail lights flare.
+    if (car.braking) {
+      const bloom = c.createRadialGradient(-CAR.length / 2 - 6, 0, 2, -CAR.length / 2 - 6, 0, 46);
+      bloom.addColorStop(0, 'rgba(255, 42, 26, 0.38)');
+      bloom.addColorStop(1, 'rgba(255, 42, 26, 0)');
+      c.fillStyle = bloom;
+      c.beginPath();
+      c.ellipse(-CAR.length / 2 - 6, 0, 46, 30, 0, 0, Math.PI * 2);
+      c.fill();
+    }
     // Tyres: four dark blocks, the front pair steering with the wheels.
     const steer = car.steerVisual || 0;
     for (const [tx, ty, front] of [
@@ -390,6 +454,24 @@ export function createRenderer(canvas, hud) {
     c.fill();
     c.fillStyle = PALETTE.glassShine;
     c.fillRect(-6, -CAR.width / 2 + 7, 3, CAR.width - 14);
+    // v4 visual: a diagonal sun glint across the roof glass — flat glass
+    // reads dead without one.
+    c.fillStyle = 'rgba(255,255,255,0.30)';
+    c.beginPath();
+    c.moveTo(-4, -CAR.width / 2 + 6);
+    c.lineTo(2, -CAR.width / 2 + 6);
+    c.lineTo(10, CAR.width / 2 - 6);
+    c.lineTo(4, CAR.width / 2 - 6);
+    c.closePath();
+    c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.18)';
+    c.beginPath();
+    c.moveTo(2, -CAR.width / 2 + 6);
+    c.lineTo(5, -CAR.width / 2 + 6);
+    c.lineTo(12, CAR.width / 2 - 6);
+    c.lineTo(9, CAR.width / 2 - 6);
+    c.closePath();
+    c.fill();
     c.fillStyle = 'rgba(180,220,255,0.7)';
     c.fillRect(CAR.length / 2 - 13, -CAR.width / 2 + 6, 4, CAR.width - 12);
     c.fillRect(-CAR.length / 2 + 8, -CAR.width / 2 + 6, 4, CAR.width - 12);
@@ -531,9 +613,15 @@ export function createRenderer(canvas, hud) {
     c.beginPath();
     c.arc(0, 0, 10, 0, Math.PI * 2);
     c.stroke();
-    c.fillStyle = '#e8b98a';
+    // v4 visual: hair on the back of the head, skin toward the facing
+    // direction — the rim of hair is what tells one pedestrian from the next.
+    c.fillStyle = ped.hair || '#2c2c2c';
     c.beginPath();
-    c.arc(fx * 3, fy * 3 - 2, 6, 0, Math.PI * 2);
+    c.arc(fx * 1.5, fy * 1.5 - 2, 6, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = ped.skin || '#e8b98a';
+    c.beginPath();
+    c.arc(fx * 3.5, fy * 3.5 - 2, 4.6, 0, Math.PI * 2);
     c.fill();
     if (ped.mission) {
       c.fillStyle = '#f2d234';
@@ -578,9 +666,14 @@ export function createRenderer(canvas, hud) {
     c.beginPath();
     c.arc(0, 0, 12, 0, Math.PI * 2);
     c.stroke();
+    // v4 visual: Danny's dark hair rims the back of his head, like the peds'.
+    c.fillStyle = '#2c2c2c';
+    c.beginPath();
+    c.arc(2, 0, 6.5, 0, Math.PI * 2);
+    c.fill();
     c.fillStyle = '#e8b98a';
     c.beginPath();
-    c.arc(4, 0, 6.5, 0, Math.PI * 2);
+    c.arc(4, 0, 5.2, 0, Math.PI * 2);
     c.fill();
     // The pistol, when Danny is aiming.
     c.fillStyle = '#222';
@@ -971,8 +1064,8 @@ export function createRenderer(canvas, hud) {
       drawSkidMarks(ctx, state);
       drawMarkers(ctx, state);
       drawPickups(ctx, state);
-      for (const car of state.trafficCars) drawCar(ctx, car, state.night, state.time, state.timeOfDay);
-      for (const cop of state.police) drawCar(ctx, cop, state.night, state.time, state.timeOfDay);
+      for (const car of state.trafficCars) drawCar(ctx, car, state.night, state.time, state.timeOfDay, state.rain);
+      for (const cop of state.police) drawCar(ctx, cop, state.night, state.time, state.timeOfDay, state.rain);
       for (const ped of state.peds) drawPed(ctx, ped, state.night);
       drawPlayer(ctx, state);
       drawTracers(ctx, state);

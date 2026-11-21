@@ -99,8 +99,8 @@ Screenshot scenes (deterministic, `seed=1`):
 | --- | --- |
 | `1-start.jpg` | `?shot=start&seed=1&clock=day` — title over a busy street |
 | `2-chase.jpg` | `?shot=chase&seed=1&clock=sunset` — sunset police pursuit in a sports car on nitro, 3 wanted stars |
-| `3-mission.jpg` | `?shot=mission&seed=1&clock=day` — The Drop at Warehouse 9 |
-| `4-night.jpg` | `?shot=night&seed=1&clock=night` — night driving downtown |
+| `3-coast.jpg` | `?shot=coast&seed=1&clock=sunset` — the final escape run down the beach road: Sunset Pier, umbrellas, ocean shimmer |
+| `4-night.jpg` | `?shot=night&seed=1&clock=night` — night driving downtown in the rain, wet-road reflections |
 
 `?clock=day|sunset|night|dawn` also pins the time of day in free play.
 

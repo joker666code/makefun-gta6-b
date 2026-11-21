@@ -1,13 +1,10 @@
-// The screenshot scenes behind ?shot=start|chase|mission|night.
+// The screenshot scenes behind ?shot=start|chase|coast|night|win.
 // Each one stages a real game state (real city, real traffic, real police)
 // and then lets the normal loop run, so the frame is what playing looks like
 // and the same seed always gives the same frame.
 
-import { PLACES } from './city.js';
 import { createCar } from './entities.js';
-import { SCREEN_PLAY, SCREEN_TITLE } from './render.js';
-import { spawnMissionPed, startMission } from './missions.js';
-import { addWanted } from './traffic.js';
+import { SCREEN_PLAY, SCREEN_TITLE, SCREEN_WIN } from './render.js';
 
 export function stageShot(name, state) {
   const p = state.player;
@@ -61,22 +58,53 @@ export function stageShot(name, state) {
     state.announceText = 'Hot Pursuit — lose the cops and reach the Safehouse!';
     return { screen: SCREEN_PLAY };
   }
-  if (name === 'mission') {
-    // Mission 3 in progress: Danny on foot at Warehouse 9, package marker ahead.
-    p.x = PLACES.warehouse.x - 120;
-    p.y = PLACES.warehouse.y;
+  if (name === 'coast') {
+    // v4: the coast in the frame — Danny cruising the beach road at sunset
+    // in an orange sports car, the Sunset Pier marker waiting up the road,
+    // umbrellas on the sand and the ocean shimmering down the left edge.
+    // This is the final mission's escape run, so the frame also shows the
+    // story reaching the pier.
+    const car = state.trafficCars.find((c) => c.carKind === 'sports') || createCar(180, 860, -Math.PI / 2, 'sports');
+    if (!state.trafficCars.includes(car)) state.trafficCars.push(car);
+    car.x = 180;
+    car.y = 860;
+    car.angle = -Math.PI / 2;
+    car.visualAngle = -Math.PI / 2; // v2 visual: the eased body angle must match the staged heading.
+    car.speed = 320;
+    car.color = '#e07a3a';
+    car.braking = false;
+    p.inCar = car;
+    p.x = car.x;
+    p.y = car.y;
+    state.night = false;
+    state.clock = 0.62;
+    state.timeOfDay = 'sunset';
+    state.wanted = 0;
+    state.money = 2150;
+    state.nitro = 80;
+    state.missionIndex = 4;
+    state.missionStep = 2;
+    state.announceText = 'The Solmaris Job — run for the Sunset Pier!';
+    return { screen: SCREEN_PLAY };
+  }
+  if (name === 'win') {
+    // v4: the end screen staged as a scene — all five missions done, Danny
+    // back at the pier at sunset with the take counted. Not in shots.json
+    // yet (still 4 frames); run ?shot=win to preview the swap.
+    p.x = 180;
+    p.y = 583;
     p.inCar = null;
     state.night = false;
-    state.clock = 0.2;
-    state.timeOfDay = 'day';
+    state.clock = 0.62;
+    state.timeOfDay = 'sunset';
     state.wanted = 0;
-    state.money = 640;
-    state.missionIndex = 2;
-    state.missionStep = 1;
-    state.missionPassenger = null;
-    spawnMissionPed(state, 'warehouse', 'Package');
-    state.announceText = 'The Drop — grab the package at Warehouse 9.';
-    return { screen: SCREEN_PLAY };
+    state.money = 3240;
+    state.missionIndex = 5;
+    state.missionStep = 0;
+    state.completedMissions = ['m1', 'm2', 'm3', 'm4', 'm5'];
+    state.stats = { totalEarned: 3240, carsStolen: 7, sideJobsDone: 3 };
+    state.announceText = '';
+    return { screen: SCREEN_WIN };
   }
   if (name === 'night') {
     // Night in the city: Danny driving through downtown, lit windows, headlights.

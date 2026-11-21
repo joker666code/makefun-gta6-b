@@ -1,8 +1,7 @@
 // Boot and the one loop: input every frame, the world in fixed 1/60 s steps,
 // the renderer painting what is there. Screens: title, play, paused, busted,
-// wasted, win. ?seed=N fixes the city; ?shot=start|chase|mission|night stages
+// wasted, win. ?seed=N fixes the city; ?shot=start|chase|coast|night|win stages
 // that scene and sets window.__shotReady once it has painted.
-
 import { CAR, CLOCK, GUN, NITRO, PLAYER, STEP, WANTED, angleTo, clamp, dist, mulberry32, timeOfDay } from './config.js';
 import { buildCity } from './city.js';
 import { hitBuilding } from './city.js';

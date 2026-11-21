@@ -73,12 +73,17 @@ export function createCar(x, y, angle, kind, rng) {
 
 export function createPed(x, y, rng) {
   const shirts = ['#d86a6a', '#6a9fd8', '#7fc46a', '#d8b26a', '#a06ad8', '#e8e8e8'];
+  // v4 visual: hair and skin vary too, so a crowd stops looking cloned.
+  const hairs = ['#2c2c2c', '#6a4a2a', '#d8b26a', '#a03a2a', '#e8e8e8', '#3a3a5a'];
+  const skins = ['#e8b98a', '#c98d5f', '#8a5f3d', '#f2c9a0'];
   return {
     kind: 'ped',
     x, y,
     angle: rng() * Math.PI * 2,
     speed: 40 + rng() * 35,
     shirt: pick(rng, shirts),
+    hair: pick(rng, hairs),
+    skin: pick(rng, skins),
     // Pedestrians stroll along sidewalks: pick a nearby road and a direction.
     roadAxis: rng() < 0.5 ? 'x' : 'y',
     roadLine: 0,

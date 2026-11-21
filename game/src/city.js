@@ -18,7 +18,7 @@ export const PLACES = {
   warehouse: { name: 'Warehouse 9', x: 2750, y: 1470 },
   bank: { name: 'Solmaris Central Bank', x: 2320, y: 610 },
   hideout: { name: 'Hideout — Old Cannery', x: 180, y: 1900 },
-  pier: { name: 'Sunset Pier', x: 180, y: 610 },
+  pier: { name: 'Sunset Pier', x: 180, y: 723 },
   airport: { name: 'Solmaris Airfield', x: 3180, y: 2330 },
 };
 
@@ -73,18 +73,20 @@ export function buildCity(seed) {
   // block used to put PIZZA and 24H MART on top of each other in the night
   // shot. Drop the later sign whenever two sign boxes would overlap on the
   // same street line. The width estimate matches the renderer's font math
-  // (bold Arial Black, size capped at 15, ~0.42 em per glyph plus padding).
+  // (bold Arial Black, measured ~0.68 em per glyph plus padding — the old
+  // 0.42 estimate was a third too narrow, so real words spilled past the
+  // plate and past each other).
   for (let i = 0; i < buildings.length; i++) {
     const a = buildings[i];
     if (!a.sign) continue;
     const aSize = Math.min(15, a.w / (a.sign.text.length * 0.8));
-    const aHalf = (a.sign.text.length * aSize * 0.42) / 2 + 8;
+    const aHalf = (a.sign.text.length * aSize * 0.68) / 2 + 8;
     const aY = a.y + a.h + (a.tall ? 12 : 7) + 13;
     for (let j = i + 1; j < buildings.length; j++) {
       const b = buildings[j];
       if (!b.sign) continue;
       const bSize = Math.min(15, b.w / (b.sign.text.length * 0.8));
-      const bHalf = (b.sign.text.length * bSize * 0.42) / 2 + 8;
+      const bHalf = (b.sign.text.length * bSize * 0.68) / 2 + 8;
       const bY = b.y + b.h + (b.tall ? 12 : 7) + 13;
       const cxA = a.x + a.w / 2;
       const cxB = b.x + b.w / 2;
@@ -136,11 +138,15 @@ export function buildCity(seed) {
   }
 
   // v2: beach umbrellas — a row of striped shades along the sand.
+  // v4: the row sits in the gaps between the cross streets now — the old
+  // 330 px spacing parked one umbrella on the y=610 road, where the asphalt
+  // painted over it.
+  const umbrellaYs = [300, 800, 1150, 1300, 1700, 2150];
   const umbrellas = [];
   for (let i = 0; i < 6; i++) {
     umbrellas.push({
       x: 92 + (i % 2) * 18,
-      y: 300 + i * 330,
+      y: umbrellaYs[i],
       color: pick(rng, ['#ff5fa2', '#37d6e0', '#f2b234', '#e8e8e8']),
     });
   }
@@ -150,10 +156,13 @@ export function buildCity(seed) {
   // edge gets a wooden pier over the water and the marina gets moored docks.
   const runway = { x: 2960, y: 2140, w: 380, h: 70 };
   const plaza = { x: xs[4] + 60, y: ys[2] + 60, w: 220, h: 150 };
-  const pier = { x: 0, y: 560, w: 170, h: 46 };
+  const pier = { x: 0, y: 700, w: 170, h: 46 };
   const docks = [];
+  // v4: the docks sit between the cross streets now — the old 90 px spacing
+  // put one dock under the y=1040 road, where the asphalt painted over it.
+  const dockYs = [820, 1150, 1300, 1680];
   for (let i = 0; i < 4; i++) {
-    docks.push({ x: 30, y: 980 + i * 90, w: 60, h: 16, boat: rng() < 0.75 });
+    docks.push({ x: 30, y: dockYs[i], w: 60, h: 16, boat: rng() < 0.75 });
   }
 
   return {
