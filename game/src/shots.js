@@ -22,6 +22,10 @@ export function stageShot(name, state) {
   if (name === 'chase') {
     // v2: sunset pursuit — Danny fleeing in a sports car on nitro down Palm
     // Row, two patrol cars behind, 3 stars, the sky going orange.
+    // v6: this is a story beat now, not a static tail — 4 stars, a PIT cop
+    // already on Danny's rear quarter, and the PD's roadblock parked across
+    // the road ahead. Shot mode never steps updatePolice, so every staged
+    // car stays exactly where it is put: the frame is deterministic.
     const car = state.trafficCars.find((c) => c.carKind === 'sports') || createCar(1470, 610, 0, 'sports');
     if (!state.trafficCars.includes(car)) state.trafficCars.push(car);
     car.x = 1470;
@@ -37,7 +41,7 @@ export function stageShot(name, state) {
     state.night = false;
     state.clock = 0.62;
     state.timeOfDay = 'sunset';
-    state.wanted = 3;
+    state.wanted = 4;
     state.wantedTimer = 0;
     state.money = 1250;
     state.nitro = 62;
@@ -46,7 +50,24 @@ export function stageShot(name, state) {
     const cop2 = createCar(1230, 640, 0, 'police');
     cop1.speed = 460;
     cop2.speed = 440;
-    state.police = [cop1, cop2];
+    // The PIT: a third cop angled in on Danny's rear-right quarter, nose
+    // already at the bumper — the shove is a frame away.
+    const pit = createCar(1400, 655, -0.45, 'police');
+    pit.visualAngle = -0.45;
+    pit.speed = 480;
+    // The roadblock: two patrol cars parked across Palm Row ahead, on the
+    // y=610 road (96 px wide, so 578/642 sit in the two lanes), noses
+    // turned across the traffic — the way out is through them.
+    const block1 = createCar(1800, 578, Math.PI / 2, 'police');
+    const block2 = createCar(1800, 642, Math.PI / 2, 'police');
+    block1.visualAngle = Math.PI / 2;
+    block2.visualAngle = Math.PI / 2;
+    block1.speed = 0;
+    block2.speed = 0;
+    block1.roadblock = true;
+    block2.roadblock = true;
+    state.roadblockUp = true;
+    state.police = [cop1, cop2, pit, block1, block2];
     state.missionIndex = 3;
     state.missionStep = 0;
     // v2 visual: the getaway already laid down a drift arc behind the car.
@@ -55,7 +76,7 @@ export function stageShot(name, state) {
       { x1: 1420, y1: 622, x2: 1450, y2: 612, life: 6, maxLife: 6 },
       { x1: 1380, y1: 648, x2: 1420, y2: 640, life: 6, maxLife: 6 },
     ];
-    state.announceText = 'Hot Pursuit — lose the cops and reach the Safehouse!';
+    state.announceText = 'Roadblock ahead — 4 stars! Punch through the line!';
     return { screen: SCREEN_PLAY };
   }
   if (name === 'coast') {
@@ -91,9 +112,13 @@ export function stageShot(name, state) {
     // v4: the end screen staged as a scene — all five missions done, Danny
     // back at the pier at sunset with the take counted. v5: this is shot 1
     // in shots.json now (it replaces the title screen, whose info the HUD
-    // on the other three shots already carries).
-    p.x = 180;
-    p.y = 583;
+    // on the other three shots already carries). v6: Danny stands ON the
+    // pier (120, 723) instead of inland at (180, 583), so the camera frame
+    // is the sunset harbour itself — the pier under his feet, the yacht and
+    // sailboat down the left edge, the ocean strip behind — and the
+    // narrower, lighter win panel leaves all of it visible around the text.
+    p.x = 120;
+    p.y = 723;
     p.inCar = null;
     state.night = false;
     state.clock = 0.62;

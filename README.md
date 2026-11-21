@@ -103,8 +103,8 @@ Screenshot scenes (deterministic, `seed=1`):
 
 | File | Scene |
 | --- | --- |
-| `1-win.jpg` | `?shot=win&seed=1&clock=sunset` — the win screen: final take $3,240, all 5 missions complete, over the pier at sunset |
-| `2-chase.jpg` | `?shot=chase&seed=1&clock=sunset` — sunset police pursuit in a sports car on nitro, 3 wanted stars |
+| `1-win.jpg` | `?shot=win&seed=1&clock=sunset` — the win screen: final take $3,240, all 5 missions complete, Danny standing on the Sunset Pier with the sailboat and yacht down the harbour edge |
+| `2-chase.jpg` | `?shot=chase&seed=1&clock=sunset` — sunset police pursuit at 4 stars: a PIT cop on Danny's rear quarter and the PD roadblock parked across Palm Row ahead |
 | `3-coast.jpg` | `?shot=coast&seed=1&clock=sunset` — the final escape run down the beach road: Sunset Pier, umbrellas, sailboat and yacht at anchor, ocean shimmer |
 | `4-night.jpg` | `?shot=night&seed=1&clock=night` — night driving downtown in the rain, braking under the street lamps, wet-road reflections |
 

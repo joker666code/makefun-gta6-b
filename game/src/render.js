@@ -632,7 +632,7 @@ export function createRenderer(canvas, hud) {
     }
   }
 
-  function drawPed(c, ped, night) {
+  function drawPed(c, ped, night, nearCam) {
     if (ped.dead) return;
     const bob = Math.sin(ped.walkPhase) * 1.5;
     const swing = Math.sin(ped.walkPhase) * 5;
@@ -703,6 +703,17 @@ export function createRenderer(canvas, hud) {
         c.beginPath();
         c.roundRect(3, -4.5, 8, 9, 4);
         c.fill();
+        // v6 visual: on a pedestrian close to the camera the cap brim gets
+        // a pale edge, so the hat still reads at 1x — a dark brim on dark
+        // hair vanishes without it. Only near-camera peds get the edge:
+        // edging every hat in the crowd would read as dirt.
+        if (nearCam) {
+          c.strokeStyle = 'rgba(255,255,255,0.85)';
+          c.lineWidth = 1.4;
+          c.beginPath();
+          c.roundRect(3, -4.5, 8, 9, 4);
+          c.stroke();
+        }
       } else {
         c.beginPath();
         c.ellipse(0, 0, 9.5, 8.5, 0, 0, Math.PI * 2);
@@ -1075,11 +1086,15 @@ export function createRenderer(canvas, hud) {
     if (hud.sidejob) hud.sidejob.textContent = sideText;
   }
 
-  function drawPanel(title, lines, prompt) {
+  // v6: panels take options — the win screen runs narrower with a lighter
+  // dim ({ w: 560, dim: 0.42 }) so the sunset pier, Danny and the boats at
+  // the frame edges stay visible instead of drowning behind the panel.
+  function drawPanel(title, lines, prompt, opts) {
+    const o = opts || {};
     ctx.save();
-    ctx.fillStyle = 'rgba(8, 12, 22, 0.72)';
+    ctx.fillStyle = `rgba(8, 12, 22, ${o.dim ?? 0.72})`;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    const w = 660;
+    const w = o.w || 660;
     const h = 160 + lines.length * 30;
     const x = (VIEW_W - w) / 2;
     const y = (VIEW_H - h) / 2;
@@ -1161,7 +1176,14 @@ export function createRenderer(canvas, hud) {
       drawPickups(ctx, state);
       for (const car of state.trafficCars) drawCar(ctx, car, state.night, state.time, state.timeOfDay, state.rain);
       for (const cop of state.police) drawCar(ctx, cop, state.night, state.time, state.timeOfDay, state.rain);
-      for (const ped of state.peds) drawPed(ctx, ped, state.night);
+      for (const ped of state.peds) {
+        // v6: a ped near the camera focus gets the close-up hat treatment.
+        // 480 px from the focus is about two thirds of the half-diagonal,
+        // so in a typical frame one or two peds qualify — the crowd keeps
+        // its plain hats and the edge never reads as dirt.
+        const nearCam = Math.hypot(ped.x - (cam.x + VIEW_W / 2), ped.y - (cam.y + VIEW_H / 2)) < 480;
+        drawPed(ctx, ped, state.night, nearCam);
+      }
       drawPlayer(ctx, state);
       drawTracers(ctx, state);
       drawParticles(ctx, state);
@@ -1220,7 +1242,11 @@ export function createRenderer(canvas, hud) {
       } else if (screen === SCREEN_OVER) {
         drawPanel('WASTED', ['Danny went down. The city keeps moving without him.', `Money kept: $${Math.round(state.money)}`, `Missions: ${state.completedMissions.length}/${MISSIONS.length} complete.`], 'Press SPACE to try again');
       } else if (screen === SCREEN_WIN) {
-        drawPanel('THE SOLMARIS JOB — DONE', ['The pier, the cash, the sunset. Danny Vega is free.', `Final take: $${Math.round(state.money).toLocaleString('en-US')}`, 'All 5 missions complete.', `Lifetime: $${Math.round(state.stats.totalEarned).toLocaleString('en-US')} earned · ${state.stats.sideJobsDone} side jobs · ${state.stats.carsStolen} cars stolen`], 'Press SPACE to keep roaming Solmaris');
+        // v6: narrower panel, lighter dim — Danny stands on the pier in the
+        // left margin (screen x 120), the yacht and sailboat run down the
+        // left edge and the pier crosses behind the panel's left side, so
+        // the sunset harbour shows around the text instead of behind a wall.
+        drawPanel('THE SOLMARIS JOB — DONE', ['The pier, the cash, the sunset. Danny Vega is free.', `Final take: $${Math.round(state.money).toLocaleString('en-US')}`, 'All 5 missions complete.', `Lifetime: $${Math.round(state.stats.totalEarned).toLocaleString('en-US')} earned · ${state.stats.sideJobsDone} side jobs · ${state.stats.carsStolen} cars stolen`], 'Press SPACE to keep roaming Solmaris', { w: 560, dim: 0.42 });
       }
       updateHud(state, screen);
       drawMinimap(state);
