@@ -66,6 +66,67 @@ export const MISSIONS = [
   },
 ];
 
+// v2: side jobs — repeatable fares between named places, for cash between
+// story missions. Take one with T, beat the clock and the tip grows with the
+// time left. A fare never blocks the story: it just pays.
+export const SIDE_JOB_TIME = 50;
+export const SIDE_JOB_BASE = 120;
+
+const SIDE_JOB_SPOTS = ['marina', 'taxiStand', 'warehouse', 'bank', 'hideout', 'pier', 'airport', 'safehouse'];
+
+export function startSideJob(state, rng) {
+  if (state.sideJob) return false;
+  const random = rng || Math.random;
+  const from = SIDE_JOB_SPOTS[Math.floor(random() * SIDE_JOB_SPOTS.length)];
+  let to = SIDE_JOB_SPOTS[Math.floor(random() * SIDE_JOB_SPOTS.length)];
+  if (to === from) to = 'airport';
+  state.sideJob = {
+    from,
+    to,
+    pickedUp: false,
+    timeLeft: SIDE_JOB_TIME,
+    reward: SIDE_JOB_BASE,
+  };
+  state.events.push({ type: 'announce', text: `Side job: pick up a fare at ${PLACES[from].name} — ${SIDE_JOB_TIME}s on the clock.` });
+  return true;
+}
+
+export function sideJobTarget(state) {
+  if (!state.sideJob) return null;
+  return PLACES[state.sideJob.pickedUp ? state.sideJob.to : state.sideJob.from] || null;
+}
+
+export function updateSideJob(state, dt) {
+  const job = state.sideJob;
+  if (!job) return;
+  job.timeLeft -= dt;
+  if (job.timeLeft <= 0) {
+    state.sideJob = null;
+    state.events.push({ type: 'announce', text: 'Side job expired — the fare found another driver.' });
+    return;
+  }
+  const p = state.player;
+  const px = p.inCar ? p.inCar.x : p.x;
+  const py = p.inCar ? p.inCar.y : p.y;
+  const target = PLACES[job.pickedUp ? job.to : job.from];
+  if (!target) return;
+  if (dist(px, py, target.x, target.y) < 90) {
+    if (!job.pickedUp) {
+      job.pickedUp = true;
+      state.events.push({ type: 'announce', text: `Fare aboard — take them to ${PLACES[job.to].name} before the clock runs out.` });
+    } else {
+      const tip = Math.round(job.timeLeft * 2);
+      const pay = job.reward + tip;
+      state.money += pay;
+      state.stats.sideJobsDone += 1;
+      state.stats.totalEarned += pay;
+      state.sideJob = null;
+      state.events.push({ type: 'missionDone', mission: { title: 'Side Job', reward: pay } });
+      state.events.push({ type: 'announce', text: `Fare delivered: $${pay} ($${job.reward} + $${tip} tip). Press T for another.` });
+    }
+  }
+}
+
 export function missionTitle(state) {
   const m = MISSIONS[state.missionIndex];
   return m ? m.title : 'Free Roam';

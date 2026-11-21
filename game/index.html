@@ -6,40 +6,49 @@
 <link rel="icon" href="data:,">
 <title>Solmaris — An Open-World Crime Story</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #101826; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #101826; font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif; }
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
   /* Read aloud, never shown: the status line screen readers announce. */
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
+  /* v2 visual: HUD panels are dark glass with a gold hairline and a soft
+     drop shadow — one look across money, health, objective and minimap. */
   #hud { position: fixed; inset: 0; pointer-events: none; color: #eef1f5; z-index: 5; }
-  .panel { background: rgba(10, 16, 28, 0.72); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 10px; }
+  .panel { background: linear-gradient(160deg, rgba(16, 24, 40, 0.88), rgba(10, 16, 28, 0.78)); border: 1px solid rgba(242, 178, 52, 0.45); border-radius: 12px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45); backdrop-filter: blur(3px); }
 
   #top-right { position: absolute; top: 12px; right: 12px; padding: 10px 14px; text-align: right; min-width: 190px; }
-  #money { font-size: 26px; font-weight: 800; color: #7ddb8a; letter-spacing: 0.5px; }
+  #money { font-family: 'Arial Black', 'Trebuchet MS', sans-serif; font-size: 28px; font-weight: 900; color: #7ddb8a; letter-spacing: 1px; text-shadow: 0 2px 0 rgba(0,0,0,0.6), 0 0 14px rgba(125, 219, 138, 0.35); }
+  #clock { font-size: 13px; color: #ffd76a; font-weight: 700; margin-top: 2px; letter-spacing: 1px; }
   #stars { font-size: 22px; letter-spacing: 3px; color: #8b93a3; }
   #stars.hot { color: #ffd76a; text-shadow: 0 0 8px rgba(255, 180, 40, 0.8); }
-  #mission-count { font-size: 12px; color: #c8cdd6; margin-top: 2px; }
+  #mission-count { font-size: 12px; color: #c8cdd6; margin-top: 2px; letter-spacing: 1px; }
 
   #top-left { position: absolute; top: 12px; left: 12px; padding: 10px 14px; max-width: 420px; }
-  #objective-label { font-size: 11px; letter-spacing: 2px; color: #f2b234; font-weight: 700; }
+  #objective-label { font-family: 'Arial Black', 'Trebuchet MS', sans-serif; font-size: 11px; letter-spacing: 3px; color: #f2b234; font-weight: 900; }
   #objective { font-size: 15px; font-weight: 600; margin-top: 3px; line-height: 1.35; }
   #announce { font-size: 13px; color: #ffd76a; margin-top: 5px; min-height: 17px; line-height: 1.3; }
 
   #bottom-left { position: absolute; left: 12px; bottom: 12px; padding: 10px 14px; width: 230px; }
   #health-row { display: flex; align-items: center; gap: 8px; }
-  #health-bar { flex: 1; height: 12px; background: rgba(255,255,255,0.15); border-radius: 6px; overflow: hidden; }
+  #health-bar { flex: 1; height: 12px; background: rgba(255,255,255,0.15); border-radius: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
   #health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #e5534b, #f2b234); border-radius: 6px; }
-  #health-text { font-size: 13px; font-weight: 700; min-width: 26px; text-align: right; }
+  #health-text { font-family: 'Arial Black', 'Trebuchet MS', sans-serif; font-size: 13px; font-weight: 900; min-width: 26px; text-align: right; }
   #vehicle-row { display: flex; justify-content: space-between; margin-top: 7px; font-size: 13px; }
   #vehicle { font-weight: 700; color: #f2b234; }
   #speed { color: #c8cdd6; }
   #ammo { font-size: 13px; margin-top: 4px; color: #c8cdd6; }
+  /* v2: nitro tank under the ammo line, and the side-job line under the objective. */
+  #nitro-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; color: #c8cdd6; }
+  #nitro-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
+  #nitro-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #37d6e0, #7ddb8a); border-radius: 4px; box-shadow: 0 0 8px rgba(55, 214, 224, 0.5); }
+  #nitro-fill.empty { background: #e5534b; }
+  #sidejob { font-size: 13px; color: #7ddb8a; margin-top: 5px; min-height: 17px; line-height: 1.3; }
 
   #minimap-wrap { position: absolute; right: 12px; bottom: 12px; padding: 6px; }
   #minimap { display: block; width: 204px; height: 156px; border-radius: 6px; }
-  #minimap-label { font-size: 10px; letter-spacing: 2px; color: #c8cdd6; text-align: center; margin-top: 4px; }
+  #minimap-label { font-family: 'Arial Black', 'Trebuchet MS', sans-serif; font-size: 10px; letter-spacing: 3px; color: #c8cdd6; text-align: center; margin-top: 4px; }
 
-  #controls { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; font-size: 11.5px; color: rgba(238,241,245,0.75); background: rgba(10,16,28,0.55); padding: 6px 12px; border-radius: 8px; white-space: nowrap; }
+  #controls { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; font-size: 11.5px; color: rgba(238,241,245,0.85); background: linear-gradient(160deg, rgba(16, 24, 40, 0.85), rgba(10, 16, 28, 0.7)); border: 1px solid rgba(242, 178, 52, 0.35); padding: 6px 12px; border-radius: 8px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
 </style>
 </head>
 <body>
@@ -50,10 +59,12 @@
   <div id="top-left" class="panel">
     <div id="objective-label">CURRENT JOB</div>
     <div id="objective">Welcome to Solmaris.</div>
+    <div id="sidejob"></div>
     <div id="announce"></div>
   </div>
   <div id="top-right" class="panel">
     <div id="money">$0</div>
+    <div id="clock">☀ Day</div>
     <div id="stars">☆☆☆☆☆</div>
     <div id="mission-count">Mission 1/5</div>
   </div>
@@ -61,12 +72,13 @@
     <div id="health-row"><span>❤</span><div id="health-bar"><div id="health-fill"></div></div><span id="health-text">100</span></div>
     <div id="vehicle-row"><span id="vehicle">On foot</span><span id="speed">—</span></div>
     <div id="ammo">🔫 12/48</div>
+    <div id="nitro-row"><span>NITRO</span><div id="nitro-bar"><div id="nitro-fill"></div></div></div>
   </div>
   <div id="minimap-wrap" class="panel">
     <canvas id="minimap" width="204" height="156"></canvas>
     <div id="minimap-label">SOLMARIS</div>
   </div>
-  <div id="controls">WASD move / drive &nbsp;·&nbsp; E enter car &nbsp;·&nbsp; Mouse aim, click shoot &nbsp;·&nbsp; F punch &nbsp;·&nbsp; R reload &nbsp;·&nbsp; Shift run &nbsp;·&nbsp; P pause</div>
+  <div id="controls">WASD move / drive &nbsp;·&nbsp; E enter car &nbsp;·&nbsp; N nitro &nbsp;·&nbsp; Space handbrake &nbsp;·&nbsp; H horn &nbsp;·&nbsp; T side job &nbsp;·&nbsp; Mouse aim, click shoot &nbsp;·&nbsp; F punch &nbsp;·&nbsp; R reload &nbsp;·&nbsp; Shift run &nbsp;·&nbsp; P pause</div>
 </div>
 
 <script type="module" src="./src/main.js"></script>

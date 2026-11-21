@@ -7,6 +7,10 @@ export const ACTION_PAUSE = 2;
 export const ACTION_ENTER_CAR = 4;
 export const ACTION_PUNCH = 8;
 export const ACTION_RELOAD = 16;
+// v2: H honks the horn, T takes a side-job fare. Space doubles as the handbrake
+// while driving (it only confirms on menu screens) and N is held for nitro.
+export const ACTION_HORN = 32;
+export const ACTION_SIDEJOB = 64;
 
 const UP = new Set(['KeyW', 'ArrowUp']);
 const DOWN = new Set(['KeyS', 'ArrowDown']);
@@ -18,6 +22,10 @@ const ENTER_CAR = new Set(['KeyE']);
 const PUNCH = new Set(['KeyF']);
 const RELOAD = new Set(['KeyR']);
 const RUN = new Set(['ShiftLeft', 'ShiftRight']);
+const HORN = new Set(['KeyH']);
+const SIDEJOB = new Set(['KeyT']);
+const NITRO = new Set(['KeyN']);
+const HANDBRAKE = new Set(['Space']);
 
 export function createInput(canvas) {
   const held = new Set();
@@ -38,6 +46,8 @@ export function createInput(canvas) {
     else if (ENTER_CAR.has(event.code)) actions |= ACTION_ENTER_CAR;
     else if (PUNCH.has(event.code)) actions |= ACTION_PUNCH;
     else if (RELOAD.has(event.code)) actions |= ACTION_RELOAD;
+    else if (HORN.has(event.code)) actions |= ACTION_HORN;
+    else if (SIDEJOB.has(event.code)) actions |= ACTION_SIDEJOB;
   }
 
   function onKeyUp(event) {
@@ -84,6 +94,9 @@ export function createInput(canvas) {
     left() { return [...LEFT].some((c) => held.has(c)); },
     right() { return [...RIGHT].some((c) => held.has(c)); },
     running() { return [...RUN].some((c) => held.has(c)); },
+    // v2: held keys for driving feel — Space handbrake, N nitro.
+    handbrake() { return [...HANDBRAKE].some((c) => held.has(c)); },
+    nitro() { return [...NITRO].some((c) => held.has(c)); },
     takeActions() {
       const taken = actions;
       actions = 0;

@@ -89,14 +89,19 @@ export function createAudio() {
   // Bass line in A minor, one bar of eight steps, with a hat tick and a rare lead note.
   const BASS = [110, 0, 110, 0, 130.8, 0, 98, 0, 110, 0, 110, 0, 164.8, 0, 146.8, 0];
   const LEAD = [0, 0, 440, 0, 0, 0, 523.25, 0, 0, 0, 0, 659.25, 0, 0, 587.33, 0];
+  // v2: chase music — the same sequencer, faster and tenser, while wanted >= 3.
+  const BASS_CHASE = [110, 110, 0, 130.8, 110, 0, 98, 0, 110, 110, 0, 164.8, 146.8, 0, 130.8, 0];
+  let chaseMode = false;
 
   function musicStep() {
     if (!musicOn || !enabled || !ensure()) return;
-    const bass = BASS[step % BASS.length];
+    const bassLine = chaseMode ? BASS_CHASE : BASS;
+    const bass = bassLine[step % bassLine.length];
     const lead = LEAD[step % LEAD.length];
     if (bass) tone(bass, 0.22, 'triangle', 0.16);
     if (lead && step % 2 === 0) tone(lead, 0.3, 'sine', 0.05);
     if (step % 2 === 0) noise(0.03, 0.05, 6000);
+    if (chaseMode && step % 4 === 0) noise(0.05, 0.09, 3000);
     step++;
   }
 
@@ -112,6 +117,12 @@ export function createAudio() {
     reload() { tone(300, 0.06, 'square', 0.12); tone(420, 0.06, 'square', 0.12); },
     crash() { noise(0.35, 0.45, 700); tone(90, 0.3, 'sawtooth', 0.2, 40); },
     engine() { tone(70, 0.4, 'sawtooth', 0.05, 110); },
+    // v2: horn (two-tone, H key or stuck traffic), tyre skid, nitro whoosh, car door.
+    horn() { tone(370, 0.18, 'square', 0.12); tone(466, 0.18, 'square', 0.1); },
+    skid() { noise(0.22, 0.16, 2600); },
+    nitro() { noise(0.5, 0.25, 4000); tone(220, 0.45, 'sawtooth', 0.08, 880); },
+    door() { noise(0.08, 0.25, 900); tone(140, 0.08, 'square', 0.1, 90); },
+    setChaseMode(v) { chaseMode = !!v; },
     siren,
     busted() { tone(392, 0.25, 'sawtooth', 0.2); tone(311, 0.4, 'sawtooth', 0.2); },
     missionDone() { [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f, 0.18, 'sine', 0.2), i * 120)); },

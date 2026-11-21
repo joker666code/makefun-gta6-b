@@ -2,9 +2,13 @@
 // a beach on the west edge, a park near the middle and the named places missions use.
 // Everything is plain data; collisions and drawing read it, nothing here draws.
 
-import { PALETTE, ROAD, WORLD, clamp, mulberry32, pick, roadXs, roadYs } from './config.js';
+import { PALETTE, ROAD, SIGNS, WORLD, clamp, mulberry32, pick, roadXs, roadYs } from './config.js';
 
 const ROOFS = [PALETTE.buildingRoof, PALETTE.buildingRoof2, PALETTE.buildingRoof3];
+
+// v2: a few parked cars are sports cars or trucks now, so stealing the right
+// ride matters — sports for a getaway, trucks for ramming through a roadblock.
+const PARKED_KINDS = ['sedan', 'sedan', 'sedan', 'sports', 'truck'];
 
 // Named places the story and the missions point at. Positions sit on roads.
 export const PLACES = {
@@ -51,6 +55,10 @@ export function buildCity(seed) {
           tall,
           floors: tall ? 5 + Math.floor(rng() * 5) : 1 + Math.floor(rng() * 3),
           lit: rng(),
+          // v2 visual: a roof-detail seed (AC units, vents, parapet lines)
+          // and, for a few big buildings, a neon sign for the street.
+          detail: rng(),
+          sign: (w > 150 || tall) && rng() < 0.4 ? pick(rng, SIGNS) : null,
         });
       }
       // A few trees on each block.
@@ -86,14 +94,48 @@ export function buildCity(seed) {
       y: vertical ? clamp(along, 200, WORLD.height - 200) : road + (rng() < 0.5 ? -34 : 34),
       angle: vertical ? (rng() < 0.5 ? Math.PI / 2 : -Math.PI / 2) : (rng() < 0.5 ? 0 : Math.PI),
       color: pick(rng, carColors),
-      kind: rng() < 0.2 ? 'taxi' : 'sedan',
+      kind: rng() < 0.15 ? 'taxi' : pick(rng, PARKED_KINDS),
     });
+  }
+
+  // v2 visual: grass tufts and wildflowers so the ground is not one flat
+  // colour — deterministic, so the same seed draws the same city.
+  const tufts = [];
+  for (let n = 0; n < 160; n++) {
+    tufts.push({
+      x: 140 + rng() * (WORLD.width - 280),
+      y: 140 + rng() * (WORLD.height - 280),
+      r: 3 + rng() * 7,
+      dark: rng() < 0.5,
+    });
+  }
+
+  // v2: beach umbrellas — a row of striped shades along the sand.
+  const umbrellas = [];
+  for (let i = 0; i < 6; i++) {
+    umbrellas.push({
+      x: 92 + (i % 2) * 18,
+      y: 300 + i * 330,
+      color: pick(rng, ['#ff5fa2', '#37d6e0', '#f2b234', '#e8e8e8']),
+    });
+  }
+
+  // v2: landmarks the missions point at, so the places feel like places.
+  // The airfield gets a real runway, downtown gets a fountain plaza, the west
+  // edge gets a wooden pier over the water and the marina gets moored docks.
+  const runway = { x: 2960, y: 2140, w: 380, h: 70 };
+  const plaza = { x: xs[4] + 60, y: ys[2] + 60, w: 220, h: 150 };
+  const pier = { x: 0, y: 560, w: 170, h: 46 };
+  const docks = [];
+  for (let i = 0; i < 4; i++) {
+    docks.push({ x: 30, y: 980 + i * 90, w: 60, h: 16, boat: rng() < 0.75 });
   }
 
   return {
     seed,
     xs, ys,
     buildings, trees, lamps, parked,
+    umbrellas, runway, plaza, pier, docks, tufts,
     park: { x: xs[2] + ROAD.width / 2 + 22, y: ys[1] + ROAD.width / 2 + 22, w: xs[3] - xs[2] - ROAD.width - 44, h: ys[2] - ys[1] - ROAD.width - 44 },
     beach: { x: 0, w: 120 },
     ocean: { x: 0, w: 70 },

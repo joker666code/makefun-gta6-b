@@ -1,13 +1,18 @@
-// Solmaris (GTA6-B) — the hand-in program for the gta6-01 entry built in lane 7.
+// Solmaris (GTA6-B) v2 — the hand-in program for the gta6-01 entry built in lane 7.
 // The game is this directory's game/ folder: plain static files a desktop browser
 // loads offline (game/index.html and its ES modules, no library and no network
 // request). It is a complete original 2D top-down open-world crime game: Danny
 // Vega returns to the sun-soaked city of Solmaris, steals cars, outruns the
-// police through five story missions, and the program hands it in. It copies
-// game/ and screenshots/ from beside this file to /output and writes
-// /output/dossier.json, the summary the judge reads, with the vendored make.fun
-// library. The copy-and-dossier plumbing below is unchanged from the kit's
-// starter; only this header is mine.
+// police through five story missions, and the program hands it in. v2 adds a
+// full day/night clock (dawn, day, sunset, night), nitro boost and handbrake
+// drifting with skid marks, sports cars and trucks with their own handling,
+// police roadblocks and PIT chases at high heat, repeatable side-job fares,
+// a horn, chase music, crash sparks, damage smoke and new landmarks (runway,
+// fountain plaza, pier, marina docks, beach umbrellas). It copies game/ and
+// screenshots/ from beside this file to /output and writes /output/dossier.json,
+// the summary the judge reads, with the vendored make.fun library. The
+// copy-and-dossier plumbing below is unchanged from the kit's starter; only
+// this header is mine.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:

@@ -14,10 +14,17 @@ export function spawnTraffic(state, rng) {
   for (const p of city.parked) {
     const car = createCar(p.x, p.y, p.angle, p.kind, rng);
     car.color = p.color;
+    // v2: a parked car stays parked until someone steals it. Before this fix
+    // the traffic AI drove every "parked" car away at spawn, so the Safehouse
+    // car was already gone when the player walked up — and stealing the moving
+    // car that replaced it meant instant heat and a wrecked ride.
+    car.parked = true;
     state.trafficCars.push(car);
   }
   for (let i = 0; i < TRAFFIC.cars; i++) {
-    const car = createCar(200 + rng() * (WORLD.width - 400), 200 + rng() * (WORLD.height - 400), 0, rng() < 0.12 ? 'taxi' : 'sedan', rng);
+    // v2: traffic is not all sedans any more — a sports car or a truck shows up.
+    const tKind = rng() < 0.12 ? 'taxi' : rng() < 0.14 ? 'sports' : rng() < 0.12 ? 'truck' : 'sedan';
+    const car = createCar(200 + rng() * (WORLD.width - 400), 200 + rng() * (WORLD.height - 400), 0, tKind, rng);
     placeOnRoad(city, car, rng);
     state.trafficCars.push(car);
   }
@@ -69,6 +76,28 @@ export function updateWanted(state, dt) {
     const cop = createCopCar(px, py, angleTo(px, py, state.player.x, state.player.y));
     state.police.push(cop);
   }
+  // v2: at 4+ stars the PD throws up a roadblock ahead of the player — two
+  // patrol cars parked across the road he is heading down. Ram through it or
+  // turn off, but it costs paint either way.
+  if (state.wanted >= 4 && !state.roadblockUp) {
+    state.roadblockUp = true;
+    const p = state.player;
+    const px = p.inCar ? p.inCar.x : p.x;
+    const py = p.inCar ? p.inCar.y : p.y;
+    const heading = p.inCar ? p.inCar.angle : p.angle;
+    const bx = clamp(px + Math.cos(heading) * 520, 120, WORLD.width - 120);
+    const by = clamp(py + Math.sin(heading) * 520, 120, WORLD.height - 120);
+    const side = heading + Math.PI / 2;
+    for (const s of [-1, 1]) {
+      const cop = createCopCar(bx + Math.cos(side) * 34 * s, by + Math.sin(side) * 34 * s, heading + Math.PI / 2);
+      cop.speed = 0;
+      cop.roadblock = true;
+      state.police.push(cop);
+    }
+    state.events.push({ type: 'announce', text: 'Roadblock ahead! The PD is boxing you in.' });
+    state.events.push({ type: 'siren' });
+  }
+  if (state.wanted < 4) state.roadblockUp = false;
 }
 
 // --- Traffic ----------------------------------------------------------------
@@ -80,6 +109,9 @@ function steerTrafficCar(state, car, dt) {
     ? (car.roadDir > 0 ? Math.PI / 2 : -Math.PI / 2)
     : (car.roadDir > 0 ? 0 : Math.PI);
   car.angle += clamp(angleDiff(targetAngle, car.angle), -2.4 * dt, 2.4 * dt);
+  // v2 visual: traffic bodies ease into turns too, and the front wheels show it.
+  car.visualAngle = (car.visualAngle ?? car.angle) + angleDiff(car.angle, car.visualAngle ?? car.angle) * Math.min(1, 8 * dt);
+  car.steerVisual = clamp(angleDiff(targetAngle, car.angle) * 0.5, -0.4, 0.4);
 
   // Slow down for the car ahead on the same road.
   let slow = false;
@@ -98,7 +130,15 @@ function steerTrafficCar(state, car, dt) {
     const dy = pc.y - car.y;
     const ahead = Math.cos(car.angle) * dx + Math.sin(car.angle) * dy;
     const side = Math.abs(-Math.sin(car.angle) * dx + Math.cos(car.angle) * dy);
-    if (ahead > 0 && ahead < 120 && side < 44) slow = true;
+    if (ahead > 0 && ahead < 120 && side < 44) {
+      slow = true;
+      // v2: stuck behind the player, traffic leans on the horn.
+      car.honkTimer = (car.honkTimer || 0) - dt;
+      if (car.honkTimer <= 0) {
+        car.honkTimer = 2 + Math.random() * 2;
+        state.events.push({ type: 'horn' });
+      }
+    }
   }
 
   const cruise = slow ? 0 : 120 + (car.cruise || 0);
@@ -122,7 +162,9 @@ function steerTrafficCar(state, car, dt) {
     }
   }
   // Drifted off the network (a collision pushed it): snap back to a road.
-  if (!onRoad(city, car.x, car.y) && Math.random() < 0.02) {
+  // v2: snap back at once instead of a 2% chance per step — before, a car
+  // that turned off the last road drove all the way to the world edge.
+  if (!onRoad(city, car.x, car.y)) {
     const p = nearestRoadPoint(city, car.x, car.y);
     car.x = p.x;
     car.y = p.y;
@@ -139,6 +181,8 @@ export function updateTraffic(state, dt) {
   for (const car of state.trafficCars) {
     // The player's car is driven by the player, not by traffic.
     if (state.player.inCar === car) continue;
+    // v2: parked cars stay parked until stolen.
+    if (car.parked) continue;
     // A stolen car with no driver still sits where it was left.
     if (car.driver === 'player-stolen' && car.speed === 0) continue;
     steerTrafficCar(state, car, dt);
@@ -209,10 +253,23 @@ export function updatePolice(state, dt) {
 
   for (const cop of state.police) {
     const d = dist(cop.x, cop.y, px, py);
-    const targetAngle = angleTo(cop.x, cop.y, px, py);
+    // v2: roadblock cars hold their line until Danny is nearly on them, then
+    // they join the chase. At 4+ stars the rest stop aiming at Danny and aim
+    // at where he is going — the PIT shove into his rear quarter.
+    if (cop.roadblock) {
+      if (d < 260) cop.roadblock = false;
+      else continue;
+    }
+    const lead = state.wanted >= 4 && player.inCar ? 0.35 : 0;
+    const tx = px + (player.inCar ? Math.cos(player.inCar.angle) * Math.abs(player.inCar.speed) * lead : 0);
+    const ty = py + (player.inCar ? Math.sin(player.inCar.angle) * Math.abs(player.inCar.speed) * lead : 0);
+    const targetAngle = angleTo(cop.x, cop.y, tx, ty);
     // Chase steering: turn toward the player, faster when close.
     const turn = clamp(angleDiff(targetAngle, cop.angle), -3.2 * dt, 3.2 * dt);
     cop.angle += turn;
+    // v2 visual: pursuit cars lean into the chase the same way.
+    cop.visualAngle = (cop.visualAngle ?? cop.angle) + angleDiff(cop.angle, cop.visualAngle ?? cop.angle) * Math.min(1, 9 * dt);
+    cop.steerVisual = clamp(turn * 8, -0.4, 0.4);
     const wantSpeed = Math.min(620, 300 + state.wanted * 55);
     cop.speed += clamp(wantSpeed - cop.speed, -500 * dt, 320 * dt);
     cop.x += Math.cos(cop.angle) * cop.speed * dt;
@@ -221,13 +278,13 @@ export function updatePolice(state, dt) {
       cop.speed *= 0.4;
       cop.angle += 0.6;
     }
-    // Ram: a hard hit hurts Danny and shakes the car.
+    // Ram: a hard hit hurts Danny and shakes the car. Harder at higher heat.
     cop.ramTimer -= dt;
     if (d < 58 && cop.ramTimer <= 0) {
       cop.ramTimer = 0.9;
       cop.speed *= 0.45;
       if (player.inCar) {
-        player.inCar.health -= POLICE.ramDamage;
+        player.inCar.health -= POLICE.ramDamage + (state.wanted >= 4 ? 5 : 0);
         state.events.push({ type: 'crash' });
         if (player.inCar.health <= 0) {
           state.events.push({ type: 'carWrecked' });
@@ -310,6 +367,8 @@ export function fireBullet(state, fromX, fromY, angle) {
     best.obj.health -= GUN.damage;
     if (best.obj.health <= 0) {
       state.police = state.police.filter((c) => c !== best.obj);
+      // v2 visual: a patrol car going up is a fireball, a shake and debris.
+      state.events.push({ type: 'explosion', x: best.obj.x, y: best.obj.y });
       state.events.push({ type: 'announce', text: 'You took out a patrol car!' });
       addWanted(state, WANTED.killCop, 'destroyed a police car');
     }

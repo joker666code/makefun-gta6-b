@@ -17,24 +17,33 @@ export function stageShot(name, state) {
     p.y = 1040;
     p.inCar = null;
     state.night = false;
+    state.clock = 0.2;
+    state.timeOfDay = 'day';
     state.wanted = 0;
     return { screen: SCREEN_TITLE };
   }
   if (name === 'chase') {
-    // Danny fleeing in a sports car down Palm Row, two patrol cars behind, 3 stars.
-    const car = state.trafficCars.find((c) => c.carKind === 'sedan') || createCar(1470, 610, 0, 'sedan');
+    // v2: sunset pursuit — Danny fleeing in a sports car on nitro down Palm
+    // Row, two patrol cars behind, 3 stars, the sky going orange.
+    const car = state.trafficCars.find((c) => c.carKind === 'sports') || createCar(1470, 610, 0, 'sports');
+    if (!state.trafficCars.includes(car)) state.trafficCars.push(car);
     car.x = 1470;
     car.y = 610;
     car.angle = 0;
-    car.speed = 420;
+    car.visualAngle = 0; // v2 visual: the eased body angle must match the staged heading.
+    car.speed = 620;
     car.color = '#c94f43';
+    car.nitroActive = true;
     p.inCar = car;
     p.x = car.x;
     p.y = car.y;
     state.night = false;
+    state.clock = 0.62;
+    state.timeOfDay = 'sunset';
     state.wanted = 3;
     state.wantedTimer = 0;
     state.money = 1250;
+    state.nitro = 62;
     // Two cops in pursuit right behind.
     const cop1 = createCar(1290, 610, 0, 'police');
     const cop2 = createCar(1230, 640, 0, 'police');
@@ -43,6 +52,12 @@ export function stageShot(name, state) {
     state.police = [cop1, cop2];
     state.missionIndex = 3;
     state.missionStep = 0;
+    // v2 visual: the getaway already laid down a drift arc behind the car.
+    state.skidMarks = [
+      { x1: 1380, y1: 636, x2: 1420, y2: 622, life: 6, maxLife: 6 },
+      { x1: 1420, y1: 622, x2: 1450, y2: 612, life: 6, maxLife: 6 },
+      { x1: 1380, y1: 648, x2: 1420, y2: 640, life: 6, maxLife: 6 },
+    ];
     state.announceText = 'Hot Pursuit — lose the cops and reach the Safehouse!';
     return { screen: SCREEN_PLAY };
   }
@@ -52,6 +67,8 @@ export function stageShot(name, state) {
     p.y = PLACES.warehouse.y;
     p.inCar = null;
     state.night = false;
+    state.clock = 0.2;
+    state.timeOfDay = 'day';
     state.wanted = 0;
     state.money = 640;
     state.missionIndex = 2;
@@ -64,15 +81,21 @@ export function stageShot(name, state) {
   if (name === 'night') {
     // Night in the city: Danny driving through downtown, lit windows, headlights.
     const car = state.trafficCars.find((c) => c.carKind === 'sedan') || createCar(2320, 1040, Math.PI / 2, 'sedan');
+    if (!state.trafficCars.includes(car)) state.trafficCars.push(car);
     car.x = 2320;
     car.y = 1040;
     car.angle = Math.PI / 2;
+    car.visualAngle = Math.PI / 2; // v2 visual: same — match the staged heading.
     car.speed = 300;
     car.color = '#4a7fb5';
     p.inCar = car;
     p.x = car.x;
     p.y = car.y;
     state.night = true;
+    state.clock = 0.8;
+    state.timeOfDay = 'night';
+    // v2 visual: the night shot is a rainy one — streaks, halos, reflections.
+    state.rain = 0.55;
     state.wanted = 1;
     state.wantedTimer = 0;
     state.money = 890;
