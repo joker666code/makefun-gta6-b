@@ -75,17 +75,19 @@ export function buildCity(seed) {
   // same street line. The width estimate matches the renderer's font math
   // (bold Arial Black, measured ~0.68 em per glyph plus padding — the old
   // 0.42 estimate was a third too narrow, so real words spilled past the
-  // plate and past each other).
+  // plate and past each other). v5: the size is now the renderer's dynamic
+  // one — the plate is capped at the building width minus 18 px, so a long
+  // word on a narrow building shrinks its type instead of spilling over.
   for (let i = 0; i < buildings.length; i++) {
     const a = buildings[i];
     if (!a.sign) continue;
-    const aSize = Math.min(15, a.w / (a.sign.text.length * 0.8));
+    const aSize = Math.max(9, Math.min(15, (a.w - 18) / (a.sign.text.length * 0.68)));
     const aHalf = (a.sign.text.length * aSize * 0.68) / 2 + 8;
     const aY = a.y + a.h + (a.tall ? 12 : 7) + 13;
     for (let j = i + 1; j < buildings.length; j++) {
       const b = buildings[j];
       if (!b.sign) continue;
-      const bSize = Math.min(15, b.w / (b.sign.text.length * 0.8));
+      const bSize = Math.max(9, Math.min(15, (b.w - 18) / (b.sign.text.length * 0.68)));
       const bHalf = (b.sign.text.length * bSize * 0.68) / 2 + 8;
       const bY = b.y + b.h + (b.tall ? 12 : 7) + 13;
       const cxA = a.x + a.w / 2;
@@ -157,6 +159,17 @@ export function buildCity(seed) {
   const runway = { x: 2960, y: 2140, w: 380, h: 70 };
   const plaza = { x: xs[4] + 60, y: ys[2] + 60, w: 220, h: 150 };
   const pier = { x: 0, y: 700, w: 170, h: 46 };
+  // v5: near-shore boats in the ocean strip (x 0–70), fixed spots so every
+  // seed draws the same harbour. Both sit mid-frame in the coast shot
+  // (camera y 500–1220, so screen y = world y − 500): the sailboat at 880
+  // and the yacht at 770 sit in the gap between the y=610 and y=1040 roads,
+  // clear of the pier (700–746), the docks (820–836) and both HUD panels.
+  // The first spots tried failed visibly: 580 sat behind the objective
+  // panel, and 1080 sat under the y=1040 road, which paints over the boats.
+  const sailboats = [
+    { x: 34, y: 880, hull: '#c94f43', sail: '#f2ead8', kind: 'sail' },
+    { x: 36, y: 770, hull: '#e0a53a', sail: null, kind: 'yacht' },
+  ];
   const docks = [];
   // v4: the docks sit between the cross streets now — the old 90 px spacing
   // put one dock under the y=1040 road, where the asphalt painted over it.
@@ -169,7 +182,7 @@ export function buildCity(seed) {
     seed,
     xs, ys,
     buildings, trees, lamps, parked,
-    umbrellas, runway, plaza, pier, docks, tufts,
+    umbrellas, runway, plaza, pier, docks, tufts, sailboats,
     park: { x: xs[2] + ROAD.width / 2 + 22, y: ys[1] + ROAD.width / 2 + 22, w: xs[3] - xs[2] - ROAD.width - 44, h: ys[2] - ys[1] - ROAD.width - 44 },
     beach: { x: 0, w: 120 },
     ocean: { x: 0, w: 70 },

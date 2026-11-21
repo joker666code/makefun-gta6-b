@@ -24,6 +24,10 @@ const seed = Number.isInteger(seedParam) ? seedParam : 1;
 // v2: ?clock=sunset|night|dawn|day pins the time of day (screenshots use it).
 const CLOCK_PRESETS = { day: 0.2, sunset: 0.62, night: 0.8, dawn: 0.95 };
 const clockPreset = CLOCK_PRESETS[params.get('clock') || ''];
+// v5: ?rain=0..1 pins the rain for a staged shot (e.g. a sunset shower, to
+// check the wet-road reflections outside the night shot). Normal play never
+// passes it, so the drifting weather is untouched.
+const rainParam = Number.parseFloat(params.get('rain') ?? '');
 
 const canvas = document.getElementById('game');
 const status = document.getElementById('status');
@@ -586,6 +590,10 @@ function startGame(fresh) {
 
 function runShot(name) {
   const scene = stageShot(name, state);
+  if (Number.isFinite(rainParam)) {
+    state.rain = clamp(rainParam, 0, 1);
+    state.rainTarget = state.rain;
+  }
   screen = scene.screen;
   if (screen === SCREEN_PLAY) audio.unlock();
   let painted = 0;

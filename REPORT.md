@@ -4,6 +4,20 @@
 **完成时间：** 2026-11-21 15:40 CST
 **工作目录：** `/home/hatch/workspace/makefun/workers/lane7-gta6-b/`
 
+## v5 — 2026-11-21（本次更新，录制 01a1fd23-69d2-753c-8e3f-920e5b9c9869 下由本 agent 手写）
+
+v4 的 6 项待办全部做完，玩法数值、存档键、vendor、LICENSE 未动：
+
+- **胜利截图取舍：** `shots.json` 的 1 号从 `1-start.jpg`（`?shot=start`）换成 `1-win.jpg`（`?shot=win&seed=1&clock=sunset`）——标题信息在其它三张的 HUD 里都有，而胜利画面是唯一展示终章结算的。重拍确认：结算面板完整（"THE SOLMARIS JOB — DONE"、Final take $3,240、All 5 missions complete、Lifetime $3,240 earned · 3 side jobs · 7 cars stolen、Mission 5/5、HUD $3,240），`1-start.jpg` 已从仓库移除（备份在 `before-visual-v5/`）。
+- **湿反射放宽到日落：** 路灯光斑与车灯水光的条件从 `night` 改为 `night || sunset`（`render.js` 两处）。验证用新增的 `?rain=` 参数（`main.js`，仅截图定格用，正常游玩不传即不受影响）：`?shot=coast&seed=1&clock=sunset&rain=0.55` 拍到日落雨天——雨丝、路灯光斑、车灯水光齐全。
+- **海岸再加近岸元素：** 西侧海面加一艘红船体帆船（白三角帆）与一艘金色游艇（白舱 + 深窗），各带一道淡色倒影。位置试了三轮才定：580 藏在任务 HUD 后面、1080 被 y=1040 横路盖住（路后画，船不可见）——现定在 880（帆船）与 770（游艇），都在 610–1040 路间空隙、栈桥（700–746）与码头（820–836）之外，3 号截图左缘两船同框清晰。
+- **行人再加一档区分：** 约 1/5 戴帽子（鸭舌帽/遮阳帽，5 色）、约 1/3 穿夹克（6 色，夹克为外环、衬衫露胸前），与 v4 的发色/肤色叠加。静态复测 260 个行人：帽子 60（鸭舌帽 36、遮阳帽 24）、夹克 90。截图验证用确定性重放（Node 直跑 `spawnTraffic` + `stageShot` + 90 步 `updatePeds`）定位到帧内戴帽行人再放大裁切：夜景一红帽行人（红帽 + 红夹克 + 紫衬衫）与海岸一夹克行人（深蓝夹克环 + 米色衬衫）均可见；鸭舌帽改成整圆帽冠后比半圆更易认。
+- **招牌字号按楼宽动态缩放：** 字号公式从 `min(15, w/(len*0.8))` 改为 `max(9, min(15, (w-18)/(len*0.68)))`——底板宽度封顶楼宽减 18px，窄楼长招牌（如 24H MART）自动降字号；`city.js` 的重叠守卫同步同公式。seed 1/2/3/7/42 复测：零重叠、零超宽底板；夜景 "SURF"/"TACOS"、海岸 "DANCE"/"HOTEL" 截图确认完整可读。
+- **夜间刹车特写：** `?shot=night` 的车加 `braking=true`（截图模式不跑模拟步进，`driveCar` 不会覆盖）。4 号截图：尾灯增亮变大、车尾地面红色光晕，与雨丝、路灯光晕、湿路面反射同框，不冲突。
+- **截图：** 4 张全部重拍（1280×800，95–110 KiB，零报错、零失败请求）；升级前对照存 `before-visual-v5/`（不进仓库）。
+- **验证：** `node --check` 11 个 JS 全部通过（`serve.ts`/`main.ts` 是 TS，`node --check` 本来就不认，改动前即如此）；实机游玩（Space 开始、上车 Bison、任务推进到 "Drive to the Marina"、+$80 拾取、步行开枪 12→11 发）零报错；单独测速：W 直线加速到 101 km/h（轿车极速 560×0.18），中途一次撞车式减速到 7 km/h 后重新加速回 101，属既有碰撞回弹行为，非 v5 回归；`main.ts` 两次运行 dossier.json 字节一致（710,988 字节 < 1.5 MiB）；`grep` 确认 game/ 零外部请求。
+- **未动：** vendor/makefun-game.ts、LICENSE、玩法数值、存档键（仍为 `solmaris.save.v2`）、`main.ts`、`serve.ts`、`config.js`、`missions.js`。
+
 ## v4 — 2026-11-21（本次更新，录制 01a1fd23-69d2-753c-8e3f-920e5b9c9869 下由本 agent 手写）
 
 v3 的 5 项待办全部做完，玩法数值、存档键、vendor、LICENSE 未动：

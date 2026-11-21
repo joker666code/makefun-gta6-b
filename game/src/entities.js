@@ -76,6 +76,18 @@ export function createPed(x, y, rng) {
   // v4 visual: hair and skin vary too, so a crowd stops looking cloned.
   const hairs = ['#2c2c2c', '#6a4a2a', '#d8b26a', '#a03a2a', '#e8e8e8', '#3a3a5a'];
   const skins = ['#e8b98a', '#c98d5f', '#8a5f3d', '#f2c9a0'];
+  // v5 visual: a second layer of variety on top of hair/skin — about one
+  // pedestrian in five wears a hat (cap or sun hat), about one in three
+  // wears a jacket over the shirt, so two peds with the same hair still
+  // read as different people at screenshot scale.
+  const hats = [
+    { type: 'cap', color: '#2c2f36' },
+    { type: 'cap', color: '#c94f43' },
+    { type: 'cap', color: '#3f8f5f' },
+    { type: 'sunhat', color: '#e8d39a' },
+    { type: 'sunhat', color: '#e8e8e8' },
+  ];
+  const jackets = ['#3a5a8a', '#8a3a3a', '#3a7a4a', '#5a3a7a', '#b0782a', '#2c4a4a'];
   return {
     kind: 'ped',
     x, y,
@@ -84,6 +96,8 @@ export function createPed(x, y, rng) {
     shirt: pick(rng, shirts),
     hair: pick(rng, hairs),
     skin: pick(rng, skins),
+    hat: rng() < 0.22 ? pick(rng, hats) : null,
+    jacket: rng() < 0.35 ? pick(rng, jackets) : null,
     // Pedestrians stroll along sidewalks: pick a nearby road and a direction.
     roadAxis: rng() < 0.5 ? 'x' : 'y',
     roadLine: 0,

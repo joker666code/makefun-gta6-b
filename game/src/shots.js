@@ -89,8 +89,9 @@ export function stageShot(name, state) {
   }
   if (name === 'win') {
     // v4: the end screen staged as a scene — all five missions done, Danny
-    // back at the pier at sunset with the take counted. Not in shots.json
-    // yet (still 4 frames); run ?shot=win to preview the swap.
+    // back at the pier at sunset with the take counted. v5: this is shot 1
+    // in shots.json now (it replaces the title screen, whose info the HUD
+    // on the other three shots already carries).
     p.x = 180;
     p.y = 583;
     p.inCar = null;
@@ -116,6 +117,11 @@ export function stageShot(name, state) {
     car.visualAngle = Math.PI / 2; // v2 visual: same — match the staged heading.
     car.speed = 300;
     car.color = '#4a7fb5';
+    // v5: the night shot is a braking close-up — the tail lights flare and
+    // the red bloom pools on the wet asphalt behind the car, so the brake
+    // light is the focal point of the rainy frame. (Shot mode never steps
+    // the simulation, so driveCar never overwrites this staged braking.)
+    car.braking = true;
     p.inCar = car;
     p.x = car.x;
     p.y = car.y;

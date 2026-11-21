@@ -73,6 +73,54 @@ export function createRenderer(canvas, hud) {
     // Wet sand line where the water meets the beach.
     c.fillStyle = night ? 'rgba(120, 160, 200, 0.25)' : 'rgba(255,255,255,0.45)';
     c.fillRect(66, cam.y - 20, 4, VIEW_H + 40);
+    // v5 visual: near-shore boats, so the ocean strip is not just a gradient
+    // — a sailboat and a yacht at anchor, each with a pale reflection
+    // shimmering under the hull and a sail or cabin on top.
+    for (const b of city.sailboats || []) {
+      if (b.x < cam.x - 40 || b.x > cam.x + VIEW_W + 40 || b.y < cam.y - 40 || b.y > cam.y + VIEW_H + 40) continue;
+      // Reflection: a soft pale smear below the hull, drifting with the swell.
+      const sway = Math.sin(state.time * 0.9 + b.y * 0.05) * 3;
+      c.fillStyle = night ? 'rgba(140, 190, 230, 0.14)' : 'rgba(255,255,255,0.28)';
+      c.beginPath();
+      c.ellipse(b.x + sway, b.y + 26, 12, 16, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = night ? 'rgba(140, 190, 230, 0.10)' : 'rgba(255,255,255,0.20)';
+      c.fillRect(b.x - 9 + sway, b.y + 30, 18, 2);
+      // Hull: a rounded vertical hull with a pale deck stripe.
+      c.fillStyle = b.hull;
+      c.beginPath();
+      c.roundRect(b.x - 8, b.y - 20, 16, 40, 8);
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.75)';
+      c.fillRect(b.x - 8, b.y - 4, 16, 3);
+      if (b.kind === 'sail' && b.sail) {
+        // Mast and a triangular sail catching the sunset light.
+        c.fillStyle = '#5a3a22';
+        c.fillRect(b.x - 1, b.y - 44, 2, 26);
+        c.fillStyle = b.sail;
+        c.beginPath();
+        c.moveTo(b.x + 1, b.y - 44);
+        c.lineTo(b.x + 1, b.y - 16);
+        c.lineTo(b.x + 16, b.y - 16);
+        c.closePath();
+        c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.5)';
+        c.beginPath();
+        c.moveTo(b.x - 1, b.y - 40);
+        c.lineTo(b.x - 1, b.y - 18);
+        c.lineTo(b.x - 11, b.y - 18);
+        c.closePath();
+        c.fill();
+      } else {
+        // Yacht: a white cabin with dark windows on the hull.
+        c.fillStyle = '#f2f2f2';
+        c.beginPath();
+        c.roundRect(b.x - 6, b.y - 16, 12, 20, 4);
+        c.fill();
+        c.fillStyle = '#1c2f4a';
+        c.fillRect(b.x - 4, b.y - 12, 8, 4);
+      }
+    }
     // The park block.
     c.fillStyle = night ? '#23401c' : PALETTE.park;
     c.fillRect(city.park.x, city.park.y, city.park.w, city.park.h);
@@ -274,7 +322,12 @@ export function createRenderer(canvas, hud) {
           ? 0.55 + 0.45 * Math.abs(Math.sin(state.time * 11 + b.x * 0.13))
           : 1;
         const glow = (tod === 'night' || tod === 'sunset') ? 1 : 0.55;
-        const size = Math.min(15, b.w / (b.sign.text.length * 0.8));
+        // v5: the type shrinks with the building — the plate is capped at
+        // the building width minus 18 px, so a long word on a narrow block
+        // (24H MART on a 90 px frontage) drops a size instead of spilling
+        // past the plate. city.js uses this same formula for its overlap
+        // guard, so the two can never disagree.
+        const size = Math.max(9, Math.min(15, (b.w - 18) / (b.sign.text.length * 0.68)));
         const tw = b.sign.text.length * size * 0.68;
         const cy = b.y + b.h + wallH + 13;
         // v4: a sign cut by the viewport edge reads as a broken word ("AR",
@@ -323,8 +376,9 @@ export function createRenderer(canvas, hud) {
     // v4 visual: rain-slick asphalt mirrors the street lamps — each lamp
     // stretches into a pale smear along its road, so a rainy night reads as
     // wet instead of just dark. A lamp sits 56 px off its own road, so the
-    // nearer road line decides which way the smear runs.
-    if (night && state.rain > 0.03) {
+    // nearer road line decides which way the smear runs. v5: a sunset shower
+    // gets the same treatment — wet roads at dusk, not only after dark.
+    if ((night || tod === 'sunset') && state.rain > 0.03) {
       const wet = Math.min(1, state.rain);
       for (const l of city.lamps) {
         if (l.x < cam.x - 60 || l.x > cam.x + VIEW_W + 60 || l.y < cam.y - 60 || l.y > cam.y + VIEW_H + 60) continue;
@@ -363,8 +417,9 @@ export function createRenderer(canvas, hud) {
     // v2 visual: the body turns on its eased angle, not the physics snap.
     c.rotate(car.visualAngle ?? car.angle);
     // v4 visual: on a wet night the headlights wash the asphalt ahead — a
-    // pale streak the beam cone alone does not give.
-    if (night && rain > 0.03) {
+    // pale streak the beam cone alone does not give. v5: same for a wet
+    // sunset — the wash follows the rain, not just the dark.
+    if ((night || tod === 'sunset') && rain > 0.03) {
       const wet = Math.min(1, rain);
       const wash = c.createLinearGradient(CAR.length / 2, 0, CAR.length / 2 + 95, 0);
       wash.addColorStop(0, `rgba(255, 240, 190, ${0.16 * wet})`);
@@ -592,22 +647,32 @@ export function createRenderer(canvas, hud) {
     c.ellipse(0, 8, 10, 4, 0, 0, Math.PI * 2);
     c.fill();
     // v2 visual: a real walk cycle — the feet alternate along the facing
-    // direction and the arms swing against them.
+    // direction and the arms swing against them. v5: the arms wear the
+    // jacket when the ped has one, so the jacket reads from every angle.
+    const top = ped.mission ? '#f2d234' : (ped.jacket || ped.shirt);
     c.fillStyle = '#2c2f36';
     c.beginPath();
     c.arc(px * -4 + fx * swing, py * -4 + fy * swing + 3, 3.4, 0, Math.PI * 2);
     c.arc(px * 4 - fx * swing, py * 4 - fy * swing + 3, 3.4, 0, Math.PI * 2);
     c.fill();
-    c.fillStyle = ped.mission ? '#f2d234' : ped.shirt;
+    c.fillStyle = top;
     c.beginPath();
     c.arc(px * -6 - fx * swing * 0.6, py * -6 - fy * swing * 0.6, 3, 0, Math.PI * 2);
     c.arc(px * 6 + fx * swing * 0.6, py * 6 + fy * swing * 0.6, 3, 0, Math.PI * 2);
     c.fill();
     // Body with a shaded edge, then the head toward the facing direction.
-    c.fillStyle = ped.mission ? '#f2d234' : ped.shirt;
+    // v5: a jacket is an outer ring with the shirt showing at the chest,
+    // so the two colours stack instead of one hiding the other.
+    c.fillStyle = top;
     c.beginPath();
     c.arc(0, 0, 10, 0, Math.PI * 2);
     c.fill();
+    if (ped.jacket && !ped.mission) {
+      c.fillStyle = ped.shirt;
+      c.beginPath();
+      c.arc(fx * 2, fy * 2, 6.5, 0, Math.PI * 2);
+      c.fill();
+    }
     c.strokeStyle = 'rgba(0,0,0,0.3)';
     c.lineWidth = 1.5;
     c.beginPath();
@@ -619,6 +684,36 @@ export function createRenderer(canvas, hud) {
     c.beginPath();
     c.arc(fx * 1.5, fy * 1.5 - 2, 6, 0, Math.PI * 2);
     c.fill();
+    // v5 visual: a hat, drawn in the ped's own facing frame so the brim
+    // points where they walk — a cap dome over the back of the head with
+    // the brim sticking out front, or a wide sun-hat brim with a dome.
+    // It goes on before the skin, so the face stays visible in front of it.
+    if (ped.hat) {
+      c.save();
+      c.translate(fx * 1.5, fy * 1.5 - 2);
+      c.rotate(ped.angle);
+      c.fillStyle = ped.hat.color;
+      if (ped.hat.type === 'cap') {
+        // Full disc, not just the back half — at screenshot scale a half
+        // dome hides under the hair, while a full crown reads as a hat
+        // with the face in front of it and the brim sticking out forward.
+        c.beginPath();
+        c.arc(0, 0, 6.5, 0, Math.PI * 2);
+        c.fill();
+        c.beginPath();
+        c.roundRect(3, -4.5, 8, 9, 4);
+        c.fill();
+      } else {
+        c.beginPath();
+        c.ellipse(0, 0, 9.5, 8.5, 0, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = 'rgba(0,0,0,0.15)';
+        c.beginPath();
+        c.arc(0, 0, 5.5, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.restore();
+    }
     c.fillStyle = ped.skin || '#e8b98a';
     c.beginPath();
     c.arc(fx * 3.5, fy * 3.5 - 2, 4.6, 0, Math.PI * 2);
