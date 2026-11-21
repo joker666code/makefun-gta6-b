@@ -58,13 +58,38 @@ export function buildCity(seed) {
           // v2 visual: a roof-detail seed (AC units, vents, parapet lines)
           // and, for a few big buildings, a neon sign for the street.
           detail: rng(),
-          sign: (w > 150 || tall) && rng() < 0.4 ? pick(rng, SIGNS) : null,
+          sign: (w > 150 || tall) && rng() < 0.3 ? pick(rng, SIGNS) : null,
         });
       }
       // A few trees on each block.
       const treeCount = 2 + Math.floor(rng() * 3);
       for (let t = 0; t < treeCount; t++) {
         trees.push({ x: bx0 + rng() * bw, y: by0 + rng() * bh, r: 9 + rng() * 7 });
+      }
+    }
+  }
+
+  // v3: neon signs must never collide — two neighbouring buildings in one
+  // block used to put PIZZA and 24H MART on top of each other in the night
+  // shot. Drop the later sign whenever two sign boxes would overlap on the
+  // same street line. The width estimate matches the renderer's font math
+  // (bold Arial Black, size capped at 15, ~0.42 em per glyph plus padding).
+  for (let i = 0; i < buildings.length; i++) {
+    const a = buildings[i];
+    if (!a.sign) continue;
+    const aSize = Math.min(15, a.w / (a.sign.text.length * 0.8));
+    const aHalf = (a.sign.text.length * aSize * 0.42) / 2 + 8;
+    const aY = a.y + a.h + (a.tall ? 12 : 7) + 13;
+    for (let j = i + 1; j < buildings.length; j++) {
+      const b = buildings[j];
+      if (!b.sign) continue;
+      const bSize = Math.min(15, b.w / (b.sign.text.length * 0.8));
+      const bHalf = (b.sign.text.length * bSize * 0.42) / 2 + 8;
+      const bY = b.y + b.h + (b.tall ? 12 : 7) + 13;
+      const cxA = a.x + a.w / 2;
+      const cxB = b.x + b.w / 2;
+      if (Math.abs(cxA - cxB) < aHalf + bHalf + 6 && Math.abs(aY - bY) < 22) {
+        b.sign = null;
       }
     }
   }

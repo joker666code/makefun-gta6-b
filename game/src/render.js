@@ -172,12 +172,21 @@ export function createRenderer(canvas, hud) {
         c.fillRect(x, y - 2, 28, 4);
       }
     }
-    // Trees.
+    // Trees: a soft ground shadow, a shaded canopy, and a sunlit top-left
+    // arc, so they read as round bushes instead of flat green discs.
     for (const t of city.trees) {
       if (t.x < cam.x - 30 || t.x > cam.x + VIEW_W + 30 || t.y < cam.y - 30 || t.y > cam.y + VIEW_H + 30) continue;
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      c.beginPath();
+      c.ellipse(t.x + 3, t.y + t.r * 0.55, t.r * 0.9, t.r * 0.45, 0, 0, Math.PI * 2);
+      c.fill();
       c.fillStyle = night ? '#1e3a1a' : '#3f7a33';
       c.beginPath();
       c.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = night ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.22)';
+      c.beginPath();
+      c.arc(t.x - t.r * 0.28, t.y - t.r * 0.28, t.r * 0.55, 0, Math.PI * 2);
       c.fill();
       c.fillStyle = '#5a3a22';
       c.fillRect(t.x - 2, t.y + t.r - 6, 4, 8);
@@ -189,6 +198,24 @@ export function createRenderer(canvas, hud) {
       if (b.x > cam.x + VIEW_W + 60 || b.x + b.w < cam.x - 60 || b.y > cam.y + VIEW_H + 60 || b.y + b.h < cam.y - 60) continue;
       c.fillStyle = `rgba(0,0,0,${sun.a})`;
       c.fillRect(b.x + sun.x, b.y + sun.y, b.w, b.h);
+      // v3 visual: a real wall face — the roof sits on a south wall and an
+      // east wall, so a block reads as a solid building with height instead
+      // of a flat card. Tall towers get a taller wall and lit windows on it.
+      const wallH = b.tall ? 12 : 7;
+      c.fillStyle = night ? 'rgba(8, 10, 16, 0.85)' : 'rgba(0,0,0,0.30)';
+      c.fillRect(b.x, b.y + b.h, b.w, wallH);
+      c.fillStyle = night ? 'rgba(8, 10, 16, 0.65)' : 'rgba(0,0,0,0.22)';
+      c.fillRect(b.x + b.w, b.y + 3, 6, b.h);
+      if (b.tall) {
+        const winN = Math.max(2, Math.floor(b.w / 44));
+        for (let i = 0; i < winN; i++) {
+          const litWin = ((i * 5 + Math.floor(b.lit * 97)) % 4) < 2;
+          c.fillStyle = night
+            ? (litWin ? 'rgba(255, 190, 90, 0.85)' : 'rgba(0,0,0,0.5)')
+            : 'rgba(255,255,255,0.18)';
+          c.fillRect(b.x + 10 + i * 44, b.y + b.h + 3, 9, 6);
+        }
+      }
       c.fillStyle = night ? '#3a3f47' : b.roof;
       c.fillRect(b.x, b.y, b.w, b.h);
       c.strokeStyle = 'rgba(0,0,0,0.35)';
@@ -239,16 +266,29 @@ export function createRenderer(canvas, hud) {
         c.fillRect(b.x + 4, b.y + 4, b.w - 8, 10);
       }
       // Neon sign on the street-facing edge, glowing at dusk and night.
+      // v3: it hangs below the wall face on a dark plate, so the letters
+      // stay readable against road and grass, and one sign in ten flickers
+      // after dark like a tired neon tube.
       if (b.sign) {
+        const flicker = night && b.detail > 0.9
+          ? 0.55 + 0.45 * Math.abs(Math.sin(state.time * 11 + b.x * 0.13))
+          : 1;
         const glow = (tod === 'night' || tod === 'sunset') ? 1 : 0.55;
+        const size = Math.min(15, b.w / (b.sign.text.length * 0.8));
+        const tw = b.sign.text.length * size * 0.42;
+        const cy = b.y + b.h + wallH + 13;
         c.save();
-        c.globalAlpha = glow;
+        c.globalAlpha = glow * flicker;
+        c.fillStyle = 'rgba(6, 10, 18, 0.55)';
+        c.beginPath();
+        c.roundRect(b.x + b.w / 2 - tw / 2 - 7, cy - size - 3, tw + 14, size + 8, 5);
+        c.fill();
         c.fillStyle = b.sign.color;
         c.shadowColor = b.sign.color;
         c.shadowBlur = 14;
-        c.font = `bold ${Math.min(15, b.w / (b.sign.text.length * 0.8))}px ` + FONT_DISPLAY;
+        c.font = `bold ${size}px ` + FONT_DISPLAY;
         c.textAlign = 'center';
-        c.fillText(b.sign.text, b.x + b.w / 2, b.y + b.h + 16);
+        c.fillText(b.sign.text, b.x + b.w / 2, cy);
         c.restore();
       }
     }
@@ -273,7 +313,7 @@ export function createRenderer(canvas, hud) {
     }
   }
 
-  function drawCar(c, car, night, time) {
+  function drawCar(c, car, night, time, tod) {
     // v2 visual: a patrol car's flashing light bar washes the street red/blue.
     if (car.carKind === 'police') {
       const red = Math.floor((time || 0) * 5) % 2 === 0;
@@ -375,10 +415,12 @@ export function createRenderer(canvas, hud) {
     c.arc(-CAR.length / 2 + 2, -CAR.width / 2 + 6, car.braking ? 4 : 3, 0, Math.PI * 2);
     c.arc(-CAR.length / 2 + 2, CAR.width / 2 - 6, car.braking ? 4 : 3, 0, Math.PI * 2);
     c.fill();
-    // Headlight beams at night: a gradient cone, not a flat triangle.
-    if (night) {
+    // Headlight beams: a gradient cone, not a flat triangle — full strength
+    // at night, and a shorter, dimmer cone at sunset when the sky is orange.
+    const beamA = night ? 0.40 : (tod === 'sunset' ? 0.20 : 0);
+    if (beamA > 0) {
       const beam = c.createLinearGradient(CAR.length / 2, 0, CAR.length / 2 + 110, 0);
-      beam.addColorStop(0, 'rgba(255, 240, 180, 0.40)');
+      beam.addColorStop(0, `rgba(255, 240, 180, ${beamA})`);
       beam.addColorStop(1, 'rgba(255, 240, 180, 0)');
       c.fillStyle = beam;
       c.beginPath();
@@ -756,6 +798,19 @@ export function createRenderer(canvas, hud) {
     m.fillRect(0, 0, w, h);
     m.fillStyle = state.night ? '#0f2f4a' : '#2f7fb8';
     m.fillRect(0, 0, 8, h);
+    // v3 visual: the minimap is a real map now — beach, park, plaza, runway
+    // and every building block, so it reads like the city at a glance.
+    m.fillStyle = state.night ? '#3a2f1a' : '#dcc288';
+    m.fillRect(8 * sx, 0, (state.city.beach.w - 8) * sx, h);
+    m.fillStyle = state.night ? '#23401c' : '#5da24a';
+    m.fillRect(state.city.park.x * sx, state.city.park.y * sy, state.city.park.w * sx, state.city.park.h * sy);
+    m.fillStyle = state.night ? '#2a2f38' : '#8a8f96';
+    m.fillRect(state.city.runway.x * sx, state.city.runway.y * sy, state.city.runway.w * sx, state.city.runway.h * sy);
+    m.fillRect(state.city.plaza.x * sx, state.city.plaza.y * sy, state.city.plaza.w * sx, state.city.plaza.h * sy);
+    m.fillStyle = state.night ? '#31363f' : '#6a7078';
+    for (const b of state.city.buildings) {
+      m.fillRect(b.x * sx, b.y * sy, Math.max(1.5, b.w * sx), Math.max(1.5, b.h * sy));
+    }
     m.fillStyle = '#3a3f47';
     for (const x of state.city.xs) m.fillRect(x * sx - 2, 0, 4, h);
     for (const y of state.city.ys) m.fillRect(0, y * sy - 2, w, 4);
@@ -916,8 +971,8 @@ export function createRenderer(canvas, hud) {
       drawSkidMarks(ctx, state);
       drawMarkers(ctx, state);
       drawPickups(ctx, state);
-      for (const car of state.trafficCars) drawCar(ctx, car, state.night, state.time);
-      for (const cop of state.police) drawCar(ctx, cop, state.night, state.time);
+      for (const car of state.trafficCars) drawCar(ctx, car, state.night, state.time, state.timeOfDay);
+      for (const cop of state.police) drawCar(ctx, cop, state.night, state.time, state.timeOfDay);
       for (const ped of state.peds) drawPed(ctx, ped, state.night);
       drawPlayer(ctx, state);
       drawTracers(ctx, state);
